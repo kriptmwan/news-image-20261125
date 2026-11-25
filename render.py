@@ -1,7 +1,12 @@
 # render.py — draws news-image-20261125 entry.png (1024x1024) with PIL.
 # Fresh build for the 25 Nov 2026 edition. Design per Gate 1 (MiMo review, build log):
-# dominant Nvidia lead, big House panel, 3-column row, Also strip; 44px floor on
+# dominant lead, big House panel, 3-column row, Also strip; 44px floor on
 # every panel headline; navy base + white type + red / gold / blue accents only.
+# REBUILD 17:17 WIB 25 Nov (user order): lead swapped Nvidia -> LSP treason
+# case (ex-police chief + 5 officers named makar suspects; Jokowi link is
+# ALLEGED only, never fact), Nvidia moved to the Also strip, stale "VP resigns"
+# (12 Nov) dropped. Gate 1 MiMo fixes applied: headline auto-shrinks to fit
+# 3 lines, ticker shortened, subline one line with "alleged" kept.
 # Everything is drawn in code (vector-style panels, big type, simple iconic shapes);
 # no external photos, no network. Deterministic: same bytes every run.
 from PIL import Image, ImageDraw, ImageFont
@@ -107,6 +112,23 @@ def check_lines(lines, fnt, max_w, label):
 
 
 # ---------------------------------------------------------------- icons
+def draw_shield(dr, x, y, s):
+    """Police shield + red star. s = icon box size."""
+    import math
+    # shield body: flat top, straight sides, pointed bottom
+    dr.polygon([(x + s * 0.10, y + s * 0.06), (x + s * 0.90, y + s * 0.06),
+                (x + s * 0.90, y + s * 0.52), (x + s * 0.50, y + s * 0.98),
+                (x + s * 0.10, y + s * 0.52)], fill=INK)
+    # 5-point star, centred
+    cx, cy, r = x + s * 0.50, y + s * 0.40, s * 0.22
+    pts = []
+    for k in range(10):
+        ang = -math.pi / 2 + k * math.pi / 5
+        rr = r if k % 2 == 0 else r * 0.45
+        pts.append((cx + math.cos(ang) * rr, cy + math.sin(ang) * rr))
+    dr.polygon(pts, fill=RED)
+
+
 def draw_candles(dr, x, y, w, h):
     """Six descending red candlesticks (AI sell-off)."""
     vals = [0.92, 0.78, 0.84, 0.62, 0.48, 0.30]  # top of body, fraction of h
@@ -238,35 +260,46 @@ LEAD_X, LEAD_W = M, 620
 HOUSE_X, HOUSE_W = M + LEAD_W + GUT, 308
 assert HOUSE_X + HOUSE_W + M == W
 
-# --- lead panel: Nvidia / AI sell-off
+# --- lead panel: Indonesia / LSP treason suspects (rebuild 17:17 WIB)
 dr.rounded_rectangle([LEAD_X, TOP_Y, LEAD_X + LEAD_W, TOP_Y + TOP_H],
                      radius=12, fill=PANEL)
 lx, ly = LEAD_X + 24, TOP_Y + 24
-dr.text((lx, ly), "MARKETS", font=font(30), fill=RED)
-lead_size, lead_lines = fit("Nvidia sheds 7% as AI rally wobbles.",
+dr.text((lx, ly), "INDONESIA", font=font(30), fill=RED)
+lead_size, lead_lines = fit("Ex-police chief, 5 officers named treason suspects",
                             max_lines=3, max_w=LEAD_W - 48,
-                            start=80, floor=64, balanced=True)
+                            start=74, floor=56, balanced=True)
 lfnt = font(lead_size)
 check_lines(lead_lines, lfnt, LEAD_W - 48, "lead headline")
 hy = ly + 30 + 14
 for ln in lead_lines:
     dr.text((lx, hy), ln, font=lfnt, fill=INK)
     hy += int(lead_size * 1.12)
-# ticker line (pinned to bottom) + chart band above it
-ticker = "NIKKEI -2.76%  \u2022  AI SELL-OFF SPREADS"
+# subline (single line; "alleged" is load-bearing — the Jokowi link is
+# alleged by critics, unproven; police named no other party as ordering it)
+sub = "Wiretap plot vs Prabowo; Jokowi link alleged"
+sfnt = font(24, bold=False)
+check_lines([sub], sfnt, LEAD_W - 48, "lead subline")
+sub_y = hy + 10
+dr.text((lx, sub_y), sub, font=sfnt, fill=MUTED)
+# visual band: shield + big "6" / SUSPECTS
+band_y = sub_y + 24 + 14
+band_h = 100
+assert band_y + band_h <= TOP_Y + TOP_H - 24 - 28 - 10, \
+    "lead visual band overflow: %d" % (band_y + band_h)
+draw_shield(dr, lx, band_y, 96)
+big = font(96)
+six_x = lx + 118
+dr.text((six_x, band_y - 4), "6", font=big, fill=RED)
+sus_x = six_x + text_w("6", big) + 14
+dr.text((sus_x, band_y + 40), "SUSPECTS", font=font(24), fill=INK)
+# ticker line (pinned to bottom)
+ticker = "MAKAR CHARGES \u2022 HEARING THU"
 tfnt = font(28, bold=False)
 check_lines([ticker], tfnt, LEAD_W - 48, "lead ticker")
 ticker_y = TOP_Y + TOP_H - 24 - 28
 dr.text((lx, ticker_y), ticker, font=tfnt, fill=MUTED)
-chart_y0, chart_y1 = hy + 16, ticker_y - 14
-chart_h = chart_y1 - chart_y0
-assert chart_h >= 70, "lead chart band too short: %dpx" % chart_h
-draw_candles(dr, lx, chart_y0, 330, chart_h)
-big = font(96)
-dr.text((LEAD_X + LEAD_W - 24 - text_w("-7%", big), chart_y0 + 6),
-        "-7%", font=big, fill=RED)
 print("lead headline: %dpx, %d lines: %s" % (lead_size, len(lead_lines), lead_lines))
-print("lead chart band: %dpx tall" % chart_h)
+print("lead visual band: y=%d h=%d" % (band_y, band_h))
 
 # --- House panel: Democrats win the House
 dr.rounded_rectangle([HOUSE_X, TOP_Y, HOUSE_X + HOUSE_W, TOP_Y + TOP_H],
@@ -329,15 +362,16 @@ for (px, pw, p) in zip(COL_X, COL_W, PANELS):
         "%s headline collides with subline" % p["kicker"]
     print("%s: %dpx, %d lines: %s" % (p["kicker"], size, len(lines), lines))
 
-# --- Also strip: Gaza + Cartagena + Indonesia
+# --- Also strip: Gaza + Nvidia / Cartagena / Indonesia mine rescue
+# (Nvidia moved here from the lead; stale "VP resigns" (12 Nov) dropped)
 dr.rounded_rectangle([M, ALSO_Y, M + LIVE, ALSO_Y + ALSO_H],
                      radius=10, fill=PANEL)
 ax = M + 16
 also1 = "Gaza strikes kill 7, incl. senior Hamas official"
-also2 = "Cartagena: 20 hostages held \u2022 Indonesia: mine rescue; VP resigns"
-afnt = font(24)
+also2 = "Nvidia sheds 7% \u2022 Cartagena: 20 hostages held \u2022 Indonesia mine rescue"
+afnt = font(22)
 label = "ALSO: "
-dr.text((ax, ALSO_Y + 7), label, font=font(24), fill=RED)
+dr.text((ax, ALSO_Y + 7), label, font=font(22), fill=RED)
 dr.text((ax + text_w(label, afnt), ALSO_Y + 7), also1, font=afnt, fill=INK)
 dr.text((ax, ALSO_Y + 32), also2, font=afnt, fill=INK)
 check_lines([label + also1], afnt, LIVE - 32, "also line 1")
